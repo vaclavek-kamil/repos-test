@@ -15,7 +15,10 @@ const pathsToIgnore = [
 
 const args = process.argv.slice(2);
 
-const source = args.find((arg) => arg.startsWith("--source=")) || "main";
+let source = args.find((arg) => arg.startsWith("--source="));
+if (!source) {
+  source = "main";
+}
 const production = args.find((arg) => arg.startsWith("--production"))
   ? true
   : false;
