@@ -1,6 +1,5 @@
 const simpleGit = require("simple-git");
 const git = simpleGit();
-const { execSync } = require("child_process");
 
 const defaultSource = "main";
 const productionBranches = ["p1", "p2"];
@@ -48,18 +47,18 @@ async function mergeBranches() {
 
       // Merge the source branch into the target branch
       try {
-        // Use the "ours" strategy for templates directory and config.js file
-        await git.raw([
-          "merge",
-          "--strategy=ours",
-          "--no-commit",
-          source,
-          "--",
-          ...pathsToIgnore,
-        ]);
-        console.log(
-          `Merged with "ours" strategy for templates directory and config.js file`
-        );
+        // Use the "ours" strategy for specific files/directories
+        for (const path of pathsToIgnore) {
+          await git.raw([
+            "merge",
+            "--strategy=ours",
+            "--no-commit",
+            source,
+            "--",
+            path,
+          ]);
+          console.log(`Merged ${path} with "ours" strategy`);
+        }
 
         // Merge the rest of the changes normally
         await git.merge([source, "--no-ff"]);
@@ -67,7 +66,7 @@ async function mergeBranches() {
       } catch (mergeError) {
         console.error(`Error during merge: ${mergeError.message}`);
         // Abort the merge in case of conflict or error
-        await git.merge(["--abort"]);
+        await git.raw(["merge", "--abort"]);
         console.log(`Merge aborted for ${branch}`);
       }
 
