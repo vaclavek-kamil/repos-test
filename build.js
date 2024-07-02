@@ -1,5 +1,6 @@
 const simpleGit = require("simple-git");
 const git = simpleGit();
+const fs = require("fs");
 
 const defaultSource = "main";
 const productionBranches = ["p1", "p2"];
@@ -45,29 +46,41 @@ async function mergeBranches() {
         console.log(`Checked out to branch ${branch}`);
       }
 
+      // Backup files to be ignored before merge
+      const backups = {};
+      for (const path of pathsToIgnore) {
+        if (fs.existsSync(path)) {
+          backups[path] = fs.readFileSync(path);
+        }
+      }
+
       // Merge the source branch into the target branch
       try {
-        // Use the "ours" strategy for specific files/directories
-        for (const path of pathsToIgnore) {
-          await git.raw([
-            "merge",
-            "--strategy=ours",
-            "--no-commit",
-            source,
-            "--",
-            path,
-          ]);
-          console.log(`Merged ${path} with "ours" strategy`);
-        }
-
-        // Merge the rest of the changes normally
         await git.merge([source, "--no-ff"]);
         console.log(`Merged ${source} into ${branch}`);
+
+        // Restore ignored files from backups
+        for (const path in backups) {
+          fs.writeFileSync(path, backups[path]);
+          console.log(`Restored ${path} from backup`);
+        }
+
+        // Commit restored files
+        await git.add(pathsToIgnore);
+        await git.commit(
+          `Restored ignored files after merging ${source} into ${branch}`
+        );
       } catch (mergeError) {
         console.error(`Error during merge: ${mergeError.message}`);
         // Abort the merge in case of conflict or error
-        await git.raw(["merge", "--abort"]);
+        await git.merge(["--abort"]);
         console.log(`Merge aborted for ${branch}`);
+
+        // Restore backups after aborted merge
+        for (const path in backups) {
+          fs.writeFileSync(path, backups[path]);
+          console.log(`Restored ${path} from backup after aborted merge`);
+        }
       }
 
       // Push the changes to the remote repository
